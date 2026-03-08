@@ -10,7 +10,9 @@ import Purchases, {
   CustomerInfo,
   Package,
   EntitlementInfo,
+  LOG_LEVEL,
 } from 'react-native-purchases';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const REVENUECAT_API_KEY = 'test_asnhboBBIIKCKLNnFBzlObcXyNP';
@@ -32,13 +34,22 @@ export interface SubscriptionInfo {
  */
 export async function initializeRevenueCat(userId?: string): Promise<void> {
   try {
+    // Set log level to verbose for debugging as recommended
+    Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+
+    // Platform-specific API keys (using the provided test key for both)
+    const iosApiKey = REVENUECAT_API_KEY;
+    const androidApiKey = REVENUECAT_API_KEY;
+
+    const apiKey = Platform.OS === 'ios' ? iosApiKey : androidApiKey;
+
     // Configure RevenueCat
     await Purchases.configure({
-      apiKey: REVENUECAT_API_KEY,
+      apiKey: apiKey,
       appUserID: userId,
     });
 
-    console.log('RevenueCat initialized successfully');
+    console.log(`RevenueCat initialized successfully on ${Platform.OS}`);
   } catch (error) {
     console.error('Error initializing RevenueCat:', error);
     throw error;
