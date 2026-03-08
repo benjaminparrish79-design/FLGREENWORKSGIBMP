@@ -13,7 +13,7 @@ import Purchases, {
 } from 'react-native-purchases';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const REVENUECAT_API_KEY = 'test_asnhboBBIIKCKLNnFBzlObcXyNPsk_uEAjjuRgeeUrQnvHHZBSFkpWQvJPL';
+const REVENUECAT_API_KEY = 'sk_uEAjjuRgeeUrQnvHHZBSFkpWQvJPL';
 const PRODUCT_ID = 'pro_access';
 const ENTITLEMENT_ID = 'pro_access';
 const SUBSCRIPTION_CACHE_KEY = 'revenuecat_subscription_cache';
