@@ -3,6 +3,9 @@
  * 
  * Handles subscription management using RevenueCat SDK
  * Manages Pro subscription ($4.99/mo) with server-side verification
+ * 
+ * ⚠️  API KEY: Set EXPO_PUBLIC_REVENUECAT_KEY in your .env file.
+ *     Never paste the real key directly into this file.
  */
 
 import Purchases, {
@@ -15,10 +18,14 @@ import Purchases, {
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const REVENUECAT_API_KEY = 'test_asnhboBBIIKCKLNnFBzlObcXyNP';
+const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY ?? '';
 const PRODUCT_ID = 'pro_access';
 const ENTITLEMENT_ID = 'pro_access';
 const SUBSCRIPTION_CACHE_KEY = 'revenuecat_subscription_cache';
+
+if (!REVENUECAT_API_KEY) {
+  console.warn('⚠️ RevenueCat API Key is missing! Subscriptions will not work. Please set EXPO_PUBLIC_REVENUECAT_KEY in your .env file.');
+}
 
 export interface SubscriptionInfo {
   isActive: boolean;
@@ -34,14 +41,16 @@ export interface SubscriptionInfo {
  */
 export async function initializeRevenueCat(userId?: string): Promise<void> {
   try {
+    if (!REVENUECAT_API_KEY) {
+      console.error('RevenueCat API Key is missing. Cannot initialize.');
+      return;
+    }
+
     // Set log level to verbose for debugging as recommended
     Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
 
-    // Platform-specific API keys (using the provided test key for both)
-    const iosApiKey = REVENUECAT_API_KEY;
-    const androidApiKey = REVENUECAT_API_KEY;
-
-    const apiKey = Platform.OS === 'ios' ? iosApiKey : androidApiKey;
+    // Platform-specific API keys
+    const apiKey = REVENUECAT_API_KEY;
 
     // Configure RevenueCat
     await Purchases.configure({

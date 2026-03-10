@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { publicProcedure, router } from '@/server/_core/trpc';
+import { protectedProcedure, router } from '@/server/_core/trpc';
 import { ENV } from '@/server/_core/env';
 
 /**
@@ -11,16 +11,16 @@ export const subscriptionRouter = router({
   /**
    * Get user's subscription status from RevenueCat
    */
-  getStatus: publicProcedure
-    .input(z.object({ userId: z.string() }))
-    .query(async ({ input }) => {
+  getStatus: protectedProcedure
+    .query(async ({ ctx }) => {
       try {
+        const userId = ctx.user.id;
         if (!ENV.revenueCatApiKey) {
           throw new Error('RevenueCat API key not configured');
         }
 
         const response = await fetch(
-          `https://api.revenuecat.com/v1/subscribers/${input.userId}`,
+          `https://api.revenuecat.com/v1/subscribers/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${ENV.revenueCatApiKey}`,
@@ -55,15 +55,16 @@ export const subscriptionRouter = router({
   /**
    * Verify a purchase receipt
    */
-  verifyReceipt: publicProcedure
+  verifyReceipt: protectedProcedure
     .input(
       z.object({
         receipt: z.string(),
         platform: z.enum(['ios', 'android']),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
+        const userId = ctx.user.id;
         if (!ENV.revenueCatApiKey) {
           throw new Error('RevenueCat API key not configured');
         }
@@ -77,7 +78,7 @@ export const subscriptionRouter = router({
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              app_user_id: 'user_id', // Should be passed from client
+              app_user_id: userId,
               fetch_token: input.receipt,
               is_restore: false,
             }),
@@ -102,16 +103,16 @@ export const subscriptionRouter = router({
   /**
    * Get subscription entitlements
    */
-  getEntitlements: publicProcedure
-    .input(z.object({ userId: z.string() }))
-    .query(async ({ input }) => {
+  getEntitlements: protectedProcedure
+    .query(async ({ ctx }) => {
       try {
+        const userId = ctx.user.id;
         if (!ENV.revenueCatApiKey) {
           throw new Error('RevenueCat API key not configured');
         }
 
         const response = await fetch(
-          `https://api.revenuecat.com/v1/subscribers/${input.userId}`,
+          `https://api.revenuecat.com/v1/subscribers/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${ENV.revenueCatApiKey}`,
@@ -149,10 +150,9 @@ export const subscriptionRouter = router({
   /**
    * Log subscription event for analytics
    */
-  logEvent: publicProcedure
+  logEvent: protectedProcedure
     .input(
       z.object({
-        userId: z.string(),
         eventType: z.enum([
           'purchase',
           'renewal',
@@ -165,11 +165,12 @@ export const subscriptionRouter = router({
         metadata: z.record(z.any()).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
+        const userId = ctx.user.id;
         // Log to your analytics service
         console.log('Subscription event:', {
-          userId: input.userId,
+          userId: userId,
           eventType: input.eventType,
           productId: input.productId,
           timestamp: new Date().toISOString(),

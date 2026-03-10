@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import {
@@ -19,7 +19,7 @@ export default function MapScreen() {
   const [bufferStatus, setBufferStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tracking, setTracking] = useState(false);
-  const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const waterBodies = getSampleWaterBodies();
 
@@ -47,7 +47,7 @@ export default function MapScreen() {
       );
 
       if (unsub) {
-        setUnsubscribe(() => unsub);
+        unsubscribeRef.current = unsub;
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to start location tracking');
@@ -56,12 +56,12 @@ export default function MapScreen() {
   }, [waterBodies]);
 
   const stopTracking = useCallback(() => {
-    if (unsubscribe) {
-      unsubscribe();
-      setUnsubscribe(null);
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
     }
     setTracking(false);
-  }, [unsubscribe]);
+  }, []);
 
   useEffect(() => {
     const initLocation = async () => {
@@ -85,11 +85,11 @@ export default function MapScreen() {
     initLocation();
 
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
       }
     };
-  }, [waterBodies, unsubscribe]);
+  }, [waterBodies]);
 
   if (loading) {
     return (

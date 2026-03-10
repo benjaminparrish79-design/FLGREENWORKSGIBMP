@@ -32,7 +32,7 @@ export interface LocalAuditLog {
  * Create a new audit log entry
  */
 export async function createAuditLog(log: Omit<LocalAuditLog, 'id' | 'created_at'>): Promise<LocalAuditLog> {
-  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const id = crypto.randomUUID();
   const created_at = new Date().toISOString();
 
   const auditLog: LocalAuditLog = {
@@ -182,7 +182,7 @@ export async function syncPendingLogs(userId: string): Promise<{ synced: number;
   try {
     const pendingIds = await getPendingSyncIds();
     let synced = 0;
-    let failed = pendingIds.length;
+    let failed = 0;
 
     for (const logId of pendingIds) {
       const log = await getAuditLogById(logId);
