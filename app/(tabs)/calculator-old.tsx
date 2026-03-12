@@ -1,6 +1,5 @@
-import { ScrollView, Text, View, TextInput, TouchableOpacity, Pressable, Alert } from 'react-native';
+import { ScrollView, Text, View, TextInput, TouchableOpacity, Pressable } from 'react-native';
 import { useState, useCallback } from 'react';
-import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import {
@@ -10,13 +9,10 @@ import {
   type FertilizerBag,
   type ApplicationJob,
 } from '@/lib/nitrogen-calculator';
-import { createAuditLog } from '@/lib/audit-log-service';
 import * as Haptics from 'expo-haptics';
-import * as Location from 'expo-location';
 
 export default function CalculatorScreen() {
   const colors = useColors();
-  const router = useRouter();
 
   // Form state
   const [turfAreaSqFt, setTurfAreaSqFt] = useState('5000');
@@ -30,7 +26,6 @@ export default function CalculatorScreen() {
   // Calculation result
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string>('');
-  const [saving, setSaving] = useState(false);
 
   const handleCalculate = useCallback(() => {
     try {
@@ -120,61 +115,6 @@ export default function CalculatorScreen() {
       setError('Error calculating max bags');
     }
   }, [turfAreaSqFt, nitrogenPercent, phosphorusPercent, potassiumPercent, bagWeightLbs, releaseType]);
-
-  const handleSaveJob = useCallback(async () => {
-    if (!result) return;
-
-    setSaving(true);
-    try {
-      // Get current location
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      // Create audit log entry
-      const jobId = `job_${Date.now()}`;
-      const auditLog = await createAuditLog({
-        job_id: jobId,
-        timestamp: new Date().toISOString(),
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        gps_accuracy_meters: location.coords.accuracy,
-        wind_speed_mph: null, // Would be populated from weather API
-        temperature_f: null, // Would be populated from weather API
-        nitrogen_applied_lbs: result.totalPoundsN,
-        distance_to_water_feet: 0, // Would be calculated from GPS
-        is_compliant: result.isCompliant,
-        notes: `${bagsToApply} bags of ${nitrogenPercent}% nitrogen fertilizer applied`,
-      });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Success', 'Job saved to audit logs', [
-        {
-          text: 'View Logs',
-          onPress: () => router.push('/(tabs)/audit-logs'),
-        },
-        {
-          text: 'Done',
-          onPress: () => {
-            // Reset form
-            setTurfAreaSqFt('5000');
-            setNitrogenPercent('10');
-            setPhosphorusPercent('10');
-            setPotassiumPercent('10');
-            setBagWeightLbs('50');
-            setBagsToApply('1');
-            setResult(null);
-          },
-        },
-      ]);
-    } catch (error) {
-      console.error('Error saving job:', error);
-      Alert.alert('Error', 'Failed to save job. Please try again.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setSaving(false);
-    }
-  }, [result, bagsToApply, nitrogenPercent, router]);
 
   return (
     <ScreenContainer className="p-4">
@@ -385,27 +325,6 @@ export default function CalculatorScreen() {
                   </Text>
                 </View>
               </View>
-
-              {/* Save Job Button */}
-              {result.isCompliant && (
-                <TouchableOpacity
-                  onPress={handleSaveJob}
-                  disabled={saving}
-                  style={{
-                    paddingVertical: 14,
-                    paddingHorizontal: 24,
-                    borderRadius: 12,
-                    backgroundColor: colors.success,
-                    alignItems: 'center',
-                    marginTop: 8,
-                    opacity: saving ? 0.6 : 1,
-                  }}
-                >
-                  <Text className="text-lg font-bold text-background">
-                    {saving ? '⏳ Saving...' : '✓ Save Compliant Job'}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           )}
         </View>

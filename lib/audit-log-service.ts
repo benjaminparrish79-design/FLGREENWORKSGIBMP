@@ -176,9 +176,9 @@ export async function getPendingSyncIds(): Promise<string[]> {
 }
 
 /**
- * Sync pending logs to Supabase
+ * Sync pending logs to Supabase with retry logic
  */
-export async function syncPendingLogs(userId: string): Promise<{ synced: number; failed: number }> {
+export async function syncPendingLogs(userId: string, maxRetries = 3): Promise<{ synced: number; failed: number }> {
   try {
     const pendingIds = await getPendingSyncIds();
     let synced = 0;
@@ -188,36 +188,67 @@ export async function syncPendingLogs(userId: string): Promise<{ synced: number;
       const log = await getAuditLogById(logId);
       if (!log) continue;
 
-      try {
-        // Insert into Supabase
-        const { error } = await supabase.from('audit_logs').insert({
-          id: log.id,
-          job_id: log.job_id,
-          user_id: userId,
-          timestamp: log.timestamp,
-          latitude: log.latitude,
-          longitude: log.longitude,
-          gps_accuracy_meters: log.gps_accuracy_meters,
-          wind_speed_mph: log.wind_speed_mph,
-          temperature_f: log.temperature_f,
-          nitrogen_applied_lbs: log.nitrogen_applied_lbs,
-          distance_to_water_feet: log.distance_to_water_feet,
-          is_compliant: log.is_compliant,
-          notes: log.notes,
-          created_at: log.created_at,
-        });
+      let lastError: any = null;
+      let syncSuccess = false;
 
-        if (error) {
-          console.error(`Error syncing log ${logId}:`, error);
-          failed++;
-        } else {
-          // Mark as synced locally
-          await updateAuditLog(logId, { synced: true });
-          await removeFromPendingSync(logId);
-          synced++;
+      // Retry logic with exponential backoff
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          // Validate data before sending
+          if (!log.job_id || !log.timestamp || log.latitude === undefined || log.longitude === undefined) {
+            console.warn(`Skipping invalid audit log ${logId}:`, log);
+            failed++;
+            syncSuccess = true; // Mark as processed to avoid retry
+            break;
+          }
+
+          // Insert into Supabase
+          const { error, data } = await supabase.from('audit_logs').insert({
+            id: log.id,
+            job_id: log.job_id,
+            user_id: userId,
+            timestamp: log.timestamp,
+            latitude: log.latitude,
+            longitude: log.longitude,
+            gps_accuracy_meters: log.gps_accuracy_meters,
+            wind_speed_mph: log.wind_speed_mph,
+            temperature_f: log.temperature_f,
+            nitrogen_applied_lbs: log.nitrogen_applied_lbs,
+            distance_to_water_feet: log.distance_to_water_feet,
+            is_compliant: log.is_compliant,
+            notes: log.notes,
+            created_at: log.created_at,
+          }).select();
+
+          if (error) {
+            lastError = error;
+            console.warn(`Attempt ${attempt + 1}/${maxRetries} failed for log ${logId}:`, error);
+            
+            // Wait before retrying (exponential backoff)
+            if (attempt < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            }
+          } else {
+            // Mark as synced locally
+            await updateAuditLog(logId, { synced: true });
+            await removeFromPendingSync(logId);
+            synced++;
+            syncSuccess = true;
+            break;
+          }
+        } catch (error) {
+          lastError = error;
+          console.warn(`Attempt ${attempt + 1}/${maxRetries} error for log ${logId}:`, error);
+          
+          // Wait before retrying
+          if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          }
         }
-      } catch (error) {
-        console.error(`Error syncing log ${logId}:`, error);
+      }
+
+      if (!syncSuccess) {
+        console.error(`Failed to sync log ${logId} after ${maxRetries} attempts:`, lastError);
         failed++;
       }
     }
@@ -227,6 +258,21 @@ export async function syncPendingLogs(userId: string): Promise<{ synced: number;
     console.error('Error syncing pending logs:', error);
     const pending = await getPendingSyncIds();
     return { synced: 0, failed: pending.length };
+  }
+}
+
+/**
+ * Get sync status
+ */
+export async function getSyncStatus(): Promise<{ pending: number; synced: number }> {
+  try {
+    const logs = await getLocalAuditLogs();
+    const pending = logs.filter((log) => !log.synced).length;
+    const synced = logs.filter((log) => log.synced).length;
+    return { pending, synced };
+  } catch (error) {
+    console.error('Error getting sync status:', error);
+    return { pending: 0, synced: 0 };
   }
 }
 
