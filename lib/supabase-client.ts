@@ -2,6 +2,7 @@
  * FL-GreenGuard: Supabase Client
  * 
  * Initializes and exports the Supabase client for use throughout the app.
+ * Types are aligned with the Drizzle schema for consistency.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -22,61 +23,146 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Database schema types
+ * Database schema types aligned with Drizzle schema
  */
-export interface JobRecord {
-  id: string;
-  user_id: string;
-  job_name: string;
-  property_address: string;
-  turf_area_sq_ft: number;
-  nitrogen_percent: number;
-  phosphorus_percent: number;
-  potassium_percent: number;
-  bag_weight_lbs: number;
-  bags_applied: number;
-  release_type: 'quick-release' | 'slow-release';
-  created_at: string;
-  updated_at: string;
+
+/**
+ * Application record - maps to applications table
+ * Stores fertilizer application data with compliance information
+ */
+export interface ApplicationRecord {
+  id: number;
+  propertyId: number;
+  crewId?: number | null;
+  userId: number;
+  productName?: string | null;
+  nitrogenPercent?: number | null;
+  applicationRate?: number | null;
+  totalNitrogen?: number | null;
+  weatherConditions?: string | null;
+  bufferZoneVerified?: number | null;
+  gpsLat?: string | null;
+  gpsLong?: string | null;
+  photoUrl?: string | null;
+  appliedAt: string;
 }
 
+/**
+ * Audit log record - derived from applications table
+ * Used for tracking and syncing application records
+ */
 export interface AuditLogRecord {
-  id: string;
-  job_id: string;
-  user_id: string;
+  id: number;
+  propertyId: number;
+  userId: number;
   timestamp: string;
-  latitude: number;
-  longitude: number;
-  gps_accuracy_meters: number | null;
-  wind_speed_mph: number | null;
-  temperature_f: number | null;
-  nitrogen_applied_lbs: number;
-  distance_to_water_feet: number;
-  is_compliant: boolean;
-  notes: string | null;
-  created_at: string;
+  latitude?: string | null;
+  longitude?: string | null;
+  gpsAccuracyMeters?: number | null;
+  windSpeedMph?: number | null;
+  temperatureF?: number | null;
+  nitrogenAppliedLbs: number;
+  distanceToWaterFeet?: number | null;
+  isCompliant: boolean;
+  notes?: string | null;
+  createdAt: string;
 }
 
+/**
+ * Certificate record - stores uploaded certificates and licenses
+ */
 export interface CertificateRecord {
-  id: string;
-  user_id: string;
-  certificate_type: 'gibmp' | 'lf_license';
-  file_path: string;
-  file_name: string;
-  expiration_date: string | null;
-  uploaded_at: string;
-  created_at: string;
+  id: number;
+  userId: number;
+  certificateType: 'gibmp' | 'lf_license' | 'other';
+  filePath: string;
+  fileName: string;
+  expirationDate?: string | null;
+  uploadedAt: string;
+  createdAt: string;
 }
 
+/**
+ * User profile - maps to users table
+ * Stores user profile information and subscription status
+ */
 export interface UserProfile {
-  id: string;
+  id: number;
+  openId: string;
   email: string;
-  license_number: string;
-  full_name: string | null;
-  company_name: string | null;
-  phone_number: string | null;
-  subscription_status: 'free' | 'pro';
-  subscription_expires_at: string | null;
-  created_at: string;
-  updated_at: string;
+  name?: string | null;
+  passwordHash?: string | null;
+  loginMethod?: string | null;
+  role: 'owner' | 'manager' | 'crew' | 'admin';
+  createdAt: string;
+  updatedAt: string;
+  lastSignedIn: string;
+}
+
+/**
+ * Company record - maps to companies table
+ */
+export interface CompanyRecord {
+  id: number;
+  companyName: string;
+  ownerUserId: number;
+  subscriptionPlan?: string | null;
+  stripeCustomerId?: string | null;
+  createdAt: string;
+}
+
+/**
+ * Property record - maps to properties table
+ */
+export interface PropertyRecord {
+  id: number;
+  companyId: number;
+  address: string;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  gpsLat?: string | null;
+  gpsLong?: string | null;
+  squareFootage?: number | null;
+  waterBodyDistance?: number | null;
+  fertilizerSchedule?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+/**
+ * Type validation utilities
+ */
+
+export function validateApplicationRecord(data: unknown): data is ApplicationRecord {
+  if (typeof data !== 'object' || data === null) return false;
+  const app = data as Record<string, unknown>;
+  return (
+    typeof app.id === 'number' &&
+    typeof app.userId === 'number' &&
+    typeof app.propertyId === 'number' &&
+    typeof app.appliedAt === 'string'
+  );
+}
+
+export function validateAuditLogRecord(data: unknown): data is AuditLogRecord {
+  if (typeof data !== 'object' || data === null) return false;
+  const log = data as Record<string, unknown>;
+  return (
+    typeof log.id === 'number' &&
+    typeof log.userId === 'number' &&
+    typeof log.propertyId === 'number' &&
+    typeof log.timestamp === 'string' &&
+    typeof log.nitrogenAppliedLbs === 'number'
+  );
+}
+
+export function validateUserProfile(data: unknown): data is UserProfile {
+  if (typeof data !== 'object' || data === null) return false;
+  const user = data as Record<string, unknown>;
+  return (
+    typeof user.id === 'number' &&
+    typeof user.openId === 'string' &&
+    typeof user.email === 'string'
+  );
 }

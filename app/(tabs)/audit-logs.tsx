@@ -27,7 +27,7 @@ export default function AuditLogsScreen() {
         getPendingSyncIds(),
       ]);
 
-      setLogs(auditLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setLogs(auditLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setSummary(complianceSummary);
       setPendingSyncCount(pendingIds.length);
     } catch (error) {
@@ -74,7 +74,7 @@ export default function AuditLogsScreen() {
     <ScreenContainer className="p-4">
       <FlatList
         data={logs}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListHeaderComponent={
           <>
@@ -130,19 +130,19 @@ export default function AuditLogsScreen() {
             {/* Date and Compliance Status */}
             <View className="flex-row justify-between items-start mb-3">
               <View className="flex-1">
-                <Text className="text-sm text-muted">{formatDate(item.created_at)}</Text>
+                <Text className="text-sm text-muted">{formatDate(item.createdAt)}</Text>
               </View>
               <View
                 className={`px-2 py-1 rounded ${
-                  item.is_compliant ? 'bg-success/20' : 'bg-error/20'
+                  item.isCompliant ? 'bg-success/20' : 'bg-error/20'
                 }`}
               >
                 <Text
                   className={`text-xs font-semibold ${
-                    item.is_compliant ? 'text-success' : 'text-error'
+                    item.isCompliant ? 'text-success' : 'text-error'
                   }`}
                 >
-                  {item.is_compliant ? '✓ Compliant' : '✗ Non-Compliant'}
+                  {item.isCompliant ? '✓ Compliant' : '✗ Non-Compliant'}
                 </Text>
               </View>
             </View>
@@ -152,13 +152,13 @@ export default function AuditLogsScreen() {
               <View className="flex-row justify-between">
                 <Text className="text-xs text-muted">Nitrogen Applied:</Text>
                 <Text className="text-sm font-semibold text-foreground">
-                  {item.nitrogen_applied_lbs.toFixed(2)} lbs
+                  {item.nitrogenAppliedLbs.toFixed(2)} lbs
                 </Text>
               </View>
               <View className="flex-row justify-between">
                 <Text className="text-xs text-muted">Distance to Water:</Text>
                 <Text className="text-sm font-semibold text-foreground">
-                  {formatDistance(item.distance_to_water_feet)}
+                  {formatDistance(item.distanceToWaterFeet || 0)}
                 </Text>
               </View>
             </View>
@@ -168,27 +168,27 @@ export default function AuditLogsScreen() {
               <View className="flex-row justify-between">
                 <Text className="text-xs text-muted">Location:</Text>
                 <Text className="text-xs text-foreground font-mono">
-                  {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+                  {parseFloat(item.latitude || '0').toFixed(4)}, {parseFloat(item.longitude || '0').toFixed(4)}
                 </Text>
               </View>
-              {item.wind_speed_mph !== null && (
+              {item.windSpeedMph !== null && (
                 <View className="flex-row justify-between">
                   <Text className="text-xs text-muted">Wind Speed:</Text>
                   <Text className="text-xs text-foreground">
-                    {item.wind_speed_mph.toFixed(1)} mph
+                    {item.windSpeedMph.toFixed(1)} mph
                   </Text>
                 </View>
               )}
-              {item.temperature_f !== null && (
+              {item.temperatureF !== null && (
                 <View className="flex-row justify-between">
                   <Text className="text-xs text-muted">Temperature:</Text>
-                  <Text className="text-xs text-foreground">{item.temperature_f.toFixed(0)}°F</Text>
+                  <Text className="text-xs text-foreground">{item.temperatureF.toFixed(0)}°F</Text>
                 </View>
               )}
             </View>
 
             {/* Sync Status */}
-            {!item.synced && (
+            {item.synced === false && (
               <View className="mt-3 pt-3 border-t border-border">
                 <Text className="text-xs text-warning font-semibold">⏳ Pending sync to cloud</Text>
               </View>

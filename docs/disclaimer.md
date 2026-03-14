@@ -1,1 +1,0 @@
-This application provides informational tools and does not constitute legal or regulatory advice. It helps landscaping professionals track fertilizer applications based on publicly available guidelines from the Florida Department of Agriculture and Consumer Services. This app is not affiliated with or endorsed by FDACS.

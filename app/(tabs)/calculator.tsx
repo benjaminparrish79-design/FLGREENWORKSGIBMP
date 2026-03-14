@@ -132,18 +132,19 @@ export default function CalculatorScreen() {
       });
 
       // Create audit log entry
-      const jobId = `job_${Date.now()}`;
+      // Note: userId and propertyId should come from user context/props in production
       const auditLog = await createAuditLog({
-        job_id: jobId,
+        userId: 1, // TODO: Get from user context
+        propertyId: 1, // TODO: Get from selected property
         timestamp: new Date().toISOString(),
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        gps_accuracy_meters: location.coords.accuracy,
-        wind_speed_mph: null, // Would be populated from weather API
-        temperature_f: null, // Would be populated from weather API
-        nitrogen_applied_lbs: result.totalPoundsN,
-        distance_to_water_feet: 0, // Would be calculated from GPS
-        is_compliant: result.isCompliant,
+        latitude: location.coords.latitude.toString(),
+        longitude: location.coords.longitude.toString(),
+        gpsAccuracyMeters: location.coords.accuracy,
+        windSpeedMph: null, // Would be populated from weather API
+        temperatureF: null, // Would be populated from weather API
+        nitrogenAppliedLbs: result.totalPoundsN,
+        distanceToWaterFeet: 0, // Would be calculated from GPS
+        isCompliant: result.isCompliant,
         notes: `${bagsToApply} bags of ${nitrogenPercent}% nitrogen fertilizer applied`,
       });
 
