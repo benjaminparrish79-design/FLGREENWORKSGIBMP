@@ -8,9 +8,6 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "ios": {
-        "buildType": "simulator"
       }
     },
     "preview": {
@@ -22,11 +19,7 @@
     "production": {
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
-      },
-      "ios": {
-        "buildType": "archive"
+        "buildType": "app-bundle"
       }
     }
   },
