@@ -1,19 +1,23 @@
-import { ScrollView, Text, View, TouchableOpacity, Alert, Switch } from 'react-native';
+import { ScrollView, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
+import { useAuth } from '@/hooks/use-auth';
 import {
   getSubscriptionStatus,
   getSubscriptionDetails,
   restorePurchases,
   cancelSubscription,
+  clearSubscriptionCache,
   formatPrice,
   type Subscription,
 } from '@/lib/billing-service';
+import { resetRevenueCatUser } from '@/lib/revenuecat-service';
 import * as Haptics from 'expo-haptics';
 
 export default function SettingsScreen() {
   const colors = useColors();
+  const { user, logout } = useAuth();
 
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [details, setDetails] = useState<any>(null);
@@ -72,6 +76,27 @@ export default function SettingsScreen() {
       ]
     );
   }, [loadSubscription]);
+
+  const handleLogout = useCallback(() => {
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await clearSubscriptionCache();
+            await resetRevenueCatUser();
+            await logout();
+          } catch (error) {
+            console.error('Logout error:', error);
+            // Force logout even if cleanup fails
+            await logout();
+          }
+        },
+      },
+    ]);
+  }, [logout]);
 
   return (
     <ScreenContainer className="p-4">
@@ -184,16 +209,27 @@ export default function SettingsScreen() {
 
             <View className="bg-surface rounded-lg p-4 gap-3">
               <View className="flex-row justify-between">
-                <Text className="text-sm text-muted">License Number</Text>
-                <Text className="text-sm font-semibold text-foreground">LF301625</Text>
+                <Text className="text-sm text-muted">Name</Text>
+                <Text className="text-sm font-semibold text-foreground">
+                  {user?.name ?? 'Benjamin Parrish'}
+                </Text>
               </View>
               <View className="flex-row justify-between">
                 <Text className="text-sm text-muted">Email</Text>
-                <Text className="text-sm font-semibold text-foreground">user@example.com</Text>
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  {user?.email ?? 'benjaminparrish79-design@gmail.com'}
+                </Text>
               </View>
               <View className="flex-row justify-between">
                 <Text className="text-sm text-muted">Member Since</Text>
-                <Text className="text-sm font-semibold text-foreground">Mar 2026</Text>
+                <Text className="text-sm font-semibold text-foreground">
+                  {user?.lastSignedIn
+                    ? new Date(user.lastSignedIn).toLocaleDateString('en-US', {
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : '—'}
+                </Text>
               </View>
             </View>
           </View>
@@ -244,6 +280,7 @@ export default function SettingsScreen() {
 
           {/* Logout */}
           <TouchableOpacity
+            onPress={handleLogout}
             style={{
               paddingVertical: 12,
               paddingHorizontal: 16,

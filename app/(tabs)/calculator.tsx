@@ -11,6 +11,7 @@ import {
   type ApplicationJob,
 } from '@/lib/nitrogen-calculator';
 import { createAuditLog } from '@/lib/audit-log-service';
+import { getCurrentUserId } from '@/lib/auth-helpers';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 
@@ -126,24 +127,44 @@ export default function CalculatorScreen() {
 
     setSaving(true);
     try {
+      // Resolve the real authenticated user ID
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Not Logged In', 'Please log in before saving a job.');
+        return;
+      }
+
       // Get current location
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
+      // Fetch live weather for the job site (non-blocking — null if key not set)
+      let windSpeedMph: number | null = null;
+      let temperatureF: number | null = null;
+      try {
+        const { getWeather } = await import('@/lib/weather');
+        const weather = await getWeather(location.coords.latitude, location.coords.longitude);
+        if (weather?.list?.[0]) {
+          windSpeedMph = weather.list[0].wind?.speed ?? null;     // m/s from OWM
+          temperatureF = weather.list[0].main?.temp ?? null;       // °F (units=imperial)
+        }
+      } catch (weatherError) {
+        console.warn('[Calculator] Weather fetch failed, saving without weather data:', weatherError);
+      }
+
       // Create audit log entry
-      // Note: userId and propertyId should come from user context/props in production
       const auditLog = await createAuditLog({
-        userId: 1, // TODO: Get from user context
-        propertyId: 1, // TODO: Get from selected property
+        userId,
+        propertyId: 1, // TODO: Let user select a property from their list
         timestamp: new Date().toISOString(),
         latitude: location.coords.latitude.toString(),
         longitude: location.coords.longitude.toString(),
         gpsAccuracyMeters: location.coords.accuracy,
-        windSpeedMph: null, // Would be populated from weather API
-        temperatureF: null, // Would be populated from weather API
+        windSpeedMph,
+        temperatureF,
         nitrogenAppliedLbs: result.totalPoundsN,
-        distanceToWaterFeet: 0, // Would be calculated from GPS
+        distanceToWaterFeet: 0, // Calculated from GPS in map screen
         isCompliant: result.isCompliant,
         notes: `${bagsToApply} bags of ${nitrogenPercent}% nitrogen fertilizer applied`,
       });

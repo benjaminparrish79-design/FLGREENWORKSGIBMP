@@ -9,4 +9,17 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   revenueCatApiKey: process.env.REVENUECAT_API_KEY ?? "",
   revenueCatPublishableKey: process.env.REVENUECAT_PUBLISHABLE_KEY ?? "",
+  // Supabase — server-side only
+  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "https://gpfbgllazvxykxoqgopz.supabase.co",
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? "",
+  // AWS S3 — for certificate storage
+  awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
+  awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+  awsRegion: process.env.AWS_REGION ?? "us-east-1",
+  awsS3Bucket: process.env.AWS_S3_BUCKET ?? "fl-greenguard-certificates",
+  // OpenWeatherMap
+  openWeatherApiKey: process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY ?? "",
+  // OpenRouter (AI)
+  openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
 };

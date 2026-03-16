@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "../drizzle/schema";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
-import mysql from "mysql2/promise";
+import postgres from "postgres";
 
-const poolConnection = mysql.createPool(process.env.DATABASE_URL || "");
+const queryClient = postgres(process.env.DATABASE_URL || "");
 
-export const db = drizzle(poolConnection, { schema: schema, mode: "planetscale" });
+export const db = drizzle(queryClient, { schema });
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {

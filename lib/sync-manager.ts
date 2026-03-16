@@ -5,6 +5,7 @@
  * Manages sync queues, retry logic, and provides sync status updates.
  */
 
+import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncPendingLogs, getSyncStatus, type SyncError } from './audit-log-service';
 

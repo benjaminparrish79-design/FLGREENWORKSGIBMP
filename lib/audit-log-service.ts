@@ -56,8 +56,19 @@ export async function createAuditLog(
       throw new Error('Missing required fields: userId, propertyId, and timestamp are required');
     }
 
-    // Generate ID (in a real app, this would be from the database)
-    const id = Math.floor(Math.random() * 1000000);
+    // Generate a collision-resistant numeric ID from a UUID-derived timestamp + random suffix
+    // Uses crypto.getRandomValues when available (RN & modern JS), falls back to Date + Math.random
+    let id: number;
+    try {
+      const buf = new Uint32Array(2);
+      crypto.getRandomValues(buf);
+      // Combine two 32-bit values into a safe positive integer
+      id = Math.abs((buf[0]! ^ (buf[1]! << 16)) >>> 0) || Date.now();
+    } catch {
+      // Fallback for environments without crypto (e.g. old Node test runners)
+      id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    }
+
     const createdAt = new Date().toISOString();
 
     const auditLog: LocalAuditLog = {
@@ -386,10 +397,20 @@ export async function getSyncStatus(): Promise<SyncStatus> {
     const statusData = await AsyncStorage.getItem(SYNC_STATUS_KEY);
     const status = statusData ? JSON.parse(statusData) : {};
 
+    // Dynamically check real network status rather than hardcoding true
+    let isOnline = true;
+    try {
+      const NetInfo = await import('@react-native-community/netinfo');
+      const state = await NetInfo.default.fetch();
+      isOnline = state.isConnected ?? true;
+    } catch {
+      // NetInfo unavailable (e.g. web preview) — assume online
+    }
+
     return {
       lastSyncTime: status.lastSyncTime,
       lastSyncError: status.lastSyncError,
-      isOnline: true, // This would be determined by network status
+      isOnline,
       pendingCount: pending,
       syncedCount: synced,
     };

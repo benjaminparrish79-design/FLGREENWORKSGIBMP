@@ -149,6 +149,13 @@ export function getMaxCompliantApplication(
   fertilizer: FertilizerBag
 ): { maxBags: number; maxPoundsN: number; maxRatePer1000SqFt: number } {
   const poundsNPerBag = (fertilizer.nitrogenPercent / 100) * fertilizer.bagWeightLbs;
+
+  // Guard: if fertilizer contains no nitrogen (e.g. a potassium-only product),
+  // there is no meaningful limit — return 0 bags to prevent division by zero.
+  if (poundsNPerBag <= 0) {
+    return { maxBags: 0, maxPoundsN: 0, maxRatePer1000SqFt: 0 };
+  }
+
   const limit = fertilizer.releaseType === 'quick-release'
     ? FDACS_LIMITS.quickRelease
     : FDACS_LIMITS.maxTotal;

@@ -5,6 +5,7 @@
  * Provides offline-first functionality with automatic sync when connection is restored.
  */
 
+import React from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { syncPendingLogs, getPendingSyncIds } from './audit-log-service';
 
@@ -127,8 +128,13 @@ class NetworkStatusService {
 
       console.log(`[Network] Starting sync of ${pendingIds.length} pending logs`);
 
-      // TODO: Get userId from user context
-      const userId = 1;
+      // Resolve the real authenticated user ID at sync time
+      const { getCurrentUserId } = await import('./auth-helpers');
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        console.warn('[Network] No authenticated user — skipping sync');
+        return;
+      }
 
       const result = await syncPendingLogs(userId, 3);
 

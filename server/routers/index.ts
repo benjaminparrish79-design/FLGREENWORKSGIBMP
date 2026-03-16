@@ -1,128 +1,163 @@
 import { publicProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { db } from "../db";
-import { applications, companies, crews, properties, users, countyRules, invites } from "../../drizzle/schema";
+import { applications, companies, crews, properties, users, countyRules, reports } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { checkCompliance } from "../compliance/engine";
 import { getWeather } from "../../lib/weather";
 
 export const appRouter = router({
-  // Company Endpoints
+  // ─── Company ───────────────────────────────────────────────────────────────
   createCompany: publicProcedure
     .input(z.object({ companyName: z.string(), ownerEmail: z.string() }))
     .mutation(async ({ input }) => {
-      const newCompany = await db.insert(companies).values({ companyName: input.companyName, ownerUserId: 0 }).returning().get(); // ownerUserId will be updated after user creation
+      const [newCompany] = await db
+        .insert(companies)
+        .values({ companyName: input.companyName, ownerUserId: 0 })
+        .returning();
       return newCompany;
     }),
 
-  // Auth Endpoints
+  // ─── Auth ──────────────────────────────────────────────────────────────────
   login: publicProcedure
     .input(z.object({ email: z.string().email(), password: z.string() }))
     .mutation(async ({ input }) => {
-      // Placeholder for actual authentication logic
-      // In a real app, you'd verify password hash and return a JWT
-      const user = await db.select().from(users).where(eq(users.email, input.email)).get();
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, input.email))
+        .limit(1);
       if (!user) {
         throw new Error("Invalid credentials");
       }
+      // NOTE: Replace mock token with a real JWT in production
       return { token: "mock-jwt-token" };
     }),
 
-  // Property Endpoints
+  // ─── Properties ────────────────────────────────────────────────────────────
   createProperty: publicProcedure
-    .input(z.object({
-      companyId: z.number(),
-      address: z.string(),
-      squareFootage: z.number(),
-      gpsLat: z.string(),
-      gpsLong: z.string(),
-    }))
+    .input(
+      z.object({
+        companyId: z.number(),
+        address: z.string(),
+        squareFootage: z.number(),
+        gpsLat: z.string(),
+        gpsLong: z.string(),
+      })
+    )
     .mutation(async ({ input }) => {
-      const newProperty = await db.insert(properties).values(input).returning().get();
-      // Backend automatically loads county fertilizer rules (placeholder)
+      const [newProperty] = await db.insert(properties).values(input).returning();
       return newProperty;
     }),
 
   getCompanyProperties: publicProcedure
     .input(z.object({ companyId: z.number() }))
     .query(async ({ input }) => {
-      return db.select().from(properties).where(eq(properties.companyId, input.companyId)).all();
+      return db
+        .select()
+        .from(properties)
+        .where(eq(properties.companyId, input.companyId));
     }),
 
   getPropertyNitrogenUsage: publicProcedure
     .input(z.object({ propertyId: z.number() }))
-    .query(async ({ input }) => {
-      // Placeholder for actual nitrogen usage calculation
+    .query(async ({ input: _input }) => {
+      // TODO: Aggregate from applications table
       return { yearLimit: 4, appliedAmount: 2.7, remainingAmount: 1.3 };
     }),
 
-  // Application Endpoints
+  // ─── Applications ──────────────────────────────────────────────────────────
   logFertilizerApplication: publicProcedure
-    .input(z.object({
-      propertyId: z.number(),
-      crewId: z.number(),
-      userId: z.number(),
-      productName: z.string(),
-      nitrogenPercent: z.number(),
-      applicationRate: z.number(),
-      gpsLat: z.string(),
-      gpsLong: z.string(),
-    }))
+    .input(
+      z.object({
+        propertyId: z.number(),
+        crewId: z.number(),
+        userId: z.number(),
+        productName: z.string(),
+        nitrogenPercent: z.number(),
+        applicationRate: z.number(),
+        gpsLat: z.string(),
+        gpsLong: z.string(),
+      })
+    )
     .mutation(async ({ input }) => {
-      // Placeholder for total nitrogen calculation and compliance check
-      const totalNitrogen = (input.applicationRate * input.nitrogenPercent) / 100; // Simplified calculation
-      const newApplication = await db.insert(applications).values({ ...input, totalNitrogen }).returning().get();
+      const totalNitrogen = Math.round((input.applicationRate * input.nitrogenPercent) / 100);
+      const [newApplication] = await db
+        .insert(applications)
+        .values({ ...input, totalNitrogen })
+        .returning();
       return newApplication;
     }),
 
-  // Compliance Endpoints
+  // ─── Compliance ────────────────────────────────────────────────────────────
   checkCompliance: publicProcedure
-    .input(z.object({
-      propertyId: z.number(),
-      applicationRate: z.number(),
-      nitrogenPercent: z.number(),
-    }))
+    .input(
+      z.object({
+        propertyId: z.number(),
+        applicationRate: z.number(),
+        nitrogenPercent: z.number(),
+      })
+    )
     .query(async ({ input }) => {
-      // Placeholder for fetching actual data for compliance check
-      const property = await db.select().from(properties).where(eq(properties.id, input.propertyId)).get();
-      const countyRule = await db.select().from(countyRules).where(eq(countyRules.countyName, "MockCounty")).get(); // Mock county
+      const [property] = await db
+        .select()
+        .from(properties)
+        .where(eq(properties.id, input.propertyId))
+        .limit(1);
+
+      const [countyRule] = await db
+        .select()
+        .from(countyRules)
+        .where(eq(countyRules.countyName, "MockCounty"))
+        .limit(1);
 
       if (!property || !countyRule) {
         throw new Error("Property or County Rule not found");
       }
 
       const complianceData = {
-        rainForecast: 0.1, // Mock data
-        waterDistance: property.waterBodyDistance || 100, // Mock data
-        nitrogenApplied: (input.applicationRate * input.nitrogenPercent) / 100, // Simplified
-        maxNitrogenAllowed: countyRule.nitrogenLimitPer1000sqft || 5, // Mock data
-        blackoutSeason: false, // Mock data
+        rainForecast: 0.1,
+        waterDistance: property.waterBodyDistance ?? 100,
+        nitrogenApplied: (input.applicationRate * input.nitrogenPercent) / 100,
+        maxNitrogenAllowed: countyRule.nitrogenLimitPer1000sqft ?? 5,
+        blackoutSeason: false,
       };
+
       return checkCompliance(complianceData);
     }),
 
   generateComplianceReport: publicProcedure
     .input(z.object({ applicationId: z.number() }))
     .mutation(async ({ input }) => {
-      // Placeholder for PDF generation and storage
-      const application = await db.select().from(applications).where(eq(applications.id, input.applicationId)).get();
+      const [application] = await db
+        .select()
+        .from(applications)
+        .where(eq(applications.id, input.applicationId))
+        .limit(1);
+
       if (!application) {
         throw new Error("Application not found");
       }
-      const pdfUrl = `/reports/${input.applicationId}.pdf`; // Mock URL
-      await db.insert(reports).values({ applicationId: input.applicationId, companyId: 0, pdfUrl }).returning().get(); // companyId will be updated
+
+      const pdfUrl = `/reports/${input.applicationId}.pdf`;
+
+      await db
+        .insert(reports)
+        .values({ applicationId: input.applicationId, companyId: 0, pdfUrl })
+        .returning();
+
       return { pdfUrl };
     }),
 
-  // Crew Endpoints
+  // ─── Crews ─────────────────────────────────────────────────────────────────
   createCrew: publicProcedure
     .input(z.object({ companyId: z.number(), crewName: z.string(), employeeName: z.string() }))
     .mutation(async ({ input }) => {
-      const newCrew = await db.insert(crews).values(input).returning().get();
+      const [newCrew] = await db.insert(crews).values(input).returning();
       return newCrew;
     }),
 
-  // Weather Endpoints
+  // ─── Weather ───────────────────────────────────────────────────────────────
   getWeatherCheck: publicProcedure
     .input(z.object({ lat: z.number(), lon: z.number() }))
     .query(async ({ input }) => {

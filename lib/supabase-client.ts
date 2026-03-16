@@ -7,8 +7,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// Falls back to the hardcoded project values so the app works even if
+// the .env file is not yet loaded (e.g. first Expo Go run).
+const supabaseUrl =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ??
+  'https://gpfbgllazvxykxoqgopz.supabase.co';
+
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZmJnbGxhenZ4eWt4b3Fnb3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NDU2MDEsImV4cCI6MjA4ODQyMTYwMX0.eaWUaDU04WUgTIV2vim7ZwGgnpGoCGi_xsP4HmpKwkE';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
